@@ -20,3 +20,9 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
+#define SYS_getNumProc 22
+#define SYS_getMaxPid 23
+#define SYS_getProcInfo 24
+#define SYS_setBurstTime 25
+#define SYS_getBurstTime 26
+#define SYS_forkWithBurst 27

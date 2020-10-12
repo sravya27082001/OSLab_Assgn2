@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "processInfo.h"
 
 struct {
   struct spinlock lock;
@@ -19,6 +20,73 @@ extern void forkret(void);
 extern void trapret(void);
 
 static void wakeup1(void *chan);
+
+struct proc* 
+procInfo(int procid)
+{
+  //int flag=0;
+  struct proc *p;
+  acquire(&ptable.lock);
+  //cprintf("reached here2, procid is %d, currproc is %p\n", procid, &currproc);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if(p->pid == procid)
+    {
+      release(&ptable.lock);
+      return p;
+    }
+  }
+  release(&ptable.lock);
+  //cprintf("reached here3, currproc.pid is %d\n", currproc->pid);
+  return 0;
+}
+
+int
+numProc(void)
+{
+  int ret=0;
+  struct proc *p;
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if(p->state != UNUSED)
+      ret++;
+  }
+  release(&ptable.lock);
+
+  return ret;
+}
+
+int
+maxPid(void)
+{
+  int ret=-100;
+  struct proc *p;
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    if(p->pid > ret)
+      ret=p->pid;
+  }
+  release(&ptable.lock);
+
+  return ret;
+}
+
+void
+activeProcs(void)
+{
+  struct proc *p;
+
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+    cprintf("%s\t",p->name);
+  }
+  release(&ptable.lock);  
+}
 
 void
 pinit(void)
@@ -88,6 +156,8 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->numSwitched=0;
+  p->burstTime=10;
 
   release(&ptable.lock);
 
@@ -330,6 +400,13 @@ scheduler(void)
     // Enable interrupts on this processor.
     sti();
 
+    int min_burst=32;
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(min_burst>p->burstTime && p->state==RUNNABLE) min_burst=p->burstTime;
+    }
+    release(&ptable.lock);
+
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -339,16 +416,21 @@ scheduler(void)
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+      if(p->burstTime==min_burst)
+      {
+        c->proc = p;
+        //cprintf("%s\t%d\n", p->name, p->burstTime);
+        switchuvm(p);
+        p->state = RUNNING;
+        p->numSwitched++;
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
+        swtch(&(c->scheduler), p->context);
+        switchkvm();
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+      }
     }
     release(&ptable.lock);
 

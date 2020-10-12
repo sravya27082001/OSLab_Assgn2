@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "processInfo.h"
 
 int
 sys_fork(void)
@@ -88,4 +89,94 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+// return the number of non-UNUSED state processes in
+// the process table.
+int
+sys_getNumProc(void)
+{
+  int num=0;
+  activeProcs();
+  cprintf("\n");
+  num = numProc();
+
+  return num;
+}
+
+// returns the number of processes that are occupying a 
+// slot in the process table.
+int
+sys_getMaxPid(void)
+{
+  activeProcs();
+  cprintf("\n");
+  int pid=0;
+  pid=maxPid();
+
+  return pid;
+}
+
+int 
+sys_getProcInfo(void)
+{
+  activeProcs();
+  cprintf("\n");
+  int procid;
+  argint(0,&procid);
+
+  
+  int dum;
+  argint(1,&dum);
+  struct processInfo *pinf = (struct processInfo*)dum;
+
+  
+  struct proc *currproc=0;
+  if((currproc=procInfo(procid))==0) return -1;
+
+  
+  pinf->ppid = ((currproc->parent)->pid<=0 ? 0:(currproc->parent)->pid);
+  pinf->psize = (int)currproc->sz;
+  pinf->numberContextSwitches = currproc->numSwitched;
+
+  return 0;
+}
+
+
+int
+sys_setBurstTime(void)
+{
+  //activeProcs();
+  //cprintf("\n");
+  struct proc *currproc = myproc();
+
+  int burst=0;
+  if(argint(0,&burst)<0) return -1;
+
+  if(burst<0 || burst>20) return -1;
+
+  currproc->burstTime=burst;
+  return 0;
+}
+
+
+int
+sys_getBurstTime(void)
+{
+  return myproc()->burstTime;
+}
+
+int
+sys_forkWithBurst(void)
+{
+  int pid = fork();
+  struct proc *currproc;
+  currproc = procInfo(pid);
+
+  int burst;
+  argint(0,&burst);
+
+  currproc->burstTime = burst;
+
+  return currproc->pid;
 }

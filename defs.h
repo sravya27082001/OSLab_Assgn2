@@ -8,6 +8,7 @@ struct rtcdate;
 struct spinlock;
 struct sleeplock;
 struct stat;
+struct processInfo;
 struct superblock;
 
 // bio.c
@@ -103,6 +104,10 @@ int             pipewrite(struct pipe*, char*, int);
 
 //PAGEBREAK: 16
 // proc.c
+struct proc*    procInfo(int);
+int             numProc(void);
+int             maxPid(void);
+void            activeProcs(void);
 int             cpuid(void);
 void            exit(void);
 int             fork(void);

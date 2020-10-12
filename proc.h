@@ -49,6 +49,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int numSwitched;             // The number of times this process is context switched
+  int burstTime;                // The user defined CPU burst time of the process
 };
 
 // Process memory is laid out contiguously, low addresses first:
